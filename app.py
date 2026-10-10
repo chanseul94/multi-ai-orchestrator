@@ -1,3 +1,4 @@
+import hmac
 import os
 
 import streamlit as st
@@ -67,7 +68,28 @@ def redact(message: str) -> str:
     return message
 
 
+def check_password() -> bool:
+    if st.session_state.get("password_correct"):
+        return True
+
+    def validate() -> None:
+        entered = st.session_state.get("app_password", "")
+        expected = get_secret("APP_PASSWORD")
+        st.session_state["password_correct"] = hmac.compare_digest(entered, expected)
+        st.session_state.pop("app_password", None)
+
+    st.title("Multi-AI Orchestrator")
+    st.text_input("Password", type="password", key="app_password", on_change=validate)
+    if st.session_state.get("password_correct") is False:
+        st.error("Incorrect password.")
+    return False
+
+
 st.set_page_config(page_title="Multi-AI Orchestrator", page_icon="🤝", layout="centered")
+
+if not check_password():
+    st.stop()
+
 st.title("Multi-AI Orchestrator")
 st.caption("Gemini analyzes first. OpenAI checks it and writes the final answer.")
 
