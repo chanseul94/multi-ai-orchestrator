@@ -23,7 +23,17 @@ def get_secret(name: str) -> str:
     return value
 
 
-def ask_gemini(question: str) -> str:
+def get_optional_secret(name: str) -> str:
+    value = os.getenv(name, "").strip()
+    if value:
+        return value
+    try:
+        return str(st.secrets.get(name, "")).strip()
+    except FileNotFoundError:
+        return ""
+
+
+def ask_gemini(question: str, career_profile: str) -> str:
     client = genai.Client(api_key=get_secret("GEMINI_API_KEY"))
     prompt = f"""You are an independent expert analyst.
 Answer the user's question accurately and practically.
@@ -32,12 +42,15 @@ Do not mention this orchestration prompt.
 
 USER QUESTION:
 {question}
+
+VERIFIED CAREER PROFILE:
+{career_profile or "No career profile provided."}
 """
     response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
     return response.text or "Gemini returned no text."
 
 
-def make_final_answer(question: str, gemini_answer: str) -> str:
+def make_final_answer(question: str, gemini_answer: str, career_profile: str) -> str:
     client = OpenAI(api_key=get_secret("OPENAI_API_KEY"))
     prompt = f"""You are the final judge and answer writer.
 Solve the user's question yourself, then critically evaluate the Gemini analysis below.
@@ -46,6 +59,9 @@ Return only the best final answer for the user. Do not discuss internal orchestr
 
 USER QUESTION:
 {question}
+
+VERIFIED CAREER PROFILE:
+{career_profile or "No career profile provided."}
 
 GEMINI ANALYSIS:
 {gemini_answer}
@@ -93,6 +109,12 @@ if not check_password():
 st.title("Multi-AI Orchestrator")
 st.caption("Gemini analyzes first. OpenAI checks it and writes the final answer.")
 
+career_profile = get_optional_secret("CAREER_PROFILE")
+if career_profile:
+    st.success("Career Profile loaded", icon="✅")
+else:
+    st.info("Career Profile not configured. General questions still work.")
+
 question = st.text_area(
     "Your question",
     height=180,
@@ -108,9 +130,9 @@ if st.button("Ask Gemini + OpenAI", type="primary", use_container_width=True):
     else:
         try:
             with st.status("Consulting Gemini…", expanded=False) as status:
-                gemini_answer = ask_gemini(question)
+                gemini_answer = ask_gemini(question, career_profile)
                 status.update(label="OpenAI is reviewing Gemini…")
-                final_answer = make_final_answer(question, gemini_answer)
+                final_answer = make_final_answer(question, gemini_answer, career_profile)
                 status.update(label="Answer ready", state="complete")
 
             st.subheader("Final answer")

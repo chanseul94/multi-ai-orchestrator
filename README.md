@@ -9,6 +9,7 @@ Configure these as hosting secrets, never as repository files:
 - `GEMINI_API_KEY`
 - `OPENAI_API_KEY`
 - `APP_PASSWORD`
+- `CAREER_PROFILE` (multiline master career profile; automatically included in every request)
 Optional variables:
 
 - `GEMINI_MODEL` (default: `gemini-3.1-flash-lite`)
